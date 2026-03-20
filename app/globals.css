@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f0e6;
+  --surface: #fffaf3;
+  --surface-strong: #f0e4d5;
+  --card: rgba(255, 250, 243, 0.84);
+  --foreground: #1f1a17;
+  --muted: #6f6258;
+  --line: rgba(93, 71, 53, 0.16);
+  --accent: #0f766e;
+  --accent-soft: #d7efe8;
+  --accent-strong: #134e4a;
+  --gold: #9f6d29;
+  --danger: #9f3a2a;
+  --shadow: 0 18px 60px rgba(64, 44, 24, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at top, rgba(15, 118, 110, 0.12), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(159, 109, 41, 0.14), transparent 26%),
+    linear-gradient(180deg, #fdf8f1 0%, #f7f0e6 100%);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+.page-shell {
+  position: relative;
+  min-height: 100vh;
+}
+
+.page-shell::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.45;
+  background-image:
+    linear-gradient(to right, transparent 0, transparent calc(100% - 1px), rgba(93, 71, 53, 0.06) calc(100% - 1px)),
+    linear-gradient(to bottom, transparent 0, transparent calc(100% - 1px), rgba(93, 71, 53, 0.04) calc(100% - 1px));
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at center, black 35%, transparent 80%);
+}
+
+.glass-card {
+  background: var(--card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 32px rgba(93, 71, 53, 0.08);
+}
+
+.glass-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(253, 248, 241, 0.75);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+  transition: all 0.3s ease;
+}
+
+
+.glass-header.scrolled {
+  background: rgba(253, 248, 241, 0.9);
+  padding-block: 0.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.section-spacing {
+  padding-block: 3.5rem;
+}
+
+@media (min-width: 1024px) {
+  .section-spacing {
+    padding-block: 5.5rem;
+  }
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.hero-title {
+  font-family: var(--font-heading);
+  font-size: clamp(3rem, 8vw, 5rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.section-title {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid rgba(15, 118, 110, 0.4);
+  outline-offset: 2px;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-modal-in {
+  animation: modal-in 0.22s ease-out both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.28s ease-out both;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-strong) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite;
+  border-radius: 12px;
+}
+
+@keyframes progress-fill {
+  from { width: 0%; }
+}
+
+.animate-progress {
+  animation: progress-fill 0.6s ease-out both;
+}
