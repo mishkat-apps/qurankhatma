@@ -1,3 +1,6 @@
+# Sensitive configuration overrides
+.codex/
+
 # Logs
 logs
 *.log
