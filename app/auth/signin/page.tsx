@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Mail, Sparkles, ChevronRight, ArrowLeft } from 'lucide-react';
@@ -21,8 +21,13 @@ export default function SignInPage() {
   const [busy, setBusy] = useState<'google' | 'email' | null>(null);
 
   // If already signed in, redirect to dashboard
+  useEffect(() => {
+    if (sessionState === 'organizer') {
+      router.replace('/dashboard');
+    }
+  }, [sessionState, router]);
+
   if (sessionState === 'organizer') {
-    router.replace('/dashboard');
     return null;
   }
 

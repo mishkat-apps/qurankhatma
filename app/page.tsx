@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Loader2, ScrollText, Share2 } from 'lucide-react';
+import { BookOpen, FolderHeart, Loader2, ScrollText, Share2, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DraftStore } from '@/lib/data/draft-store';
 import type { LocalKhatmaDraft } from '@/lib/types';
@@ -14,20 +14,39 @@ import { SiteHeader } from '@/components/ui/site-header';
 import { SiteFooter } from '@/components/ui/site-footer';
 import { formatDate, cn } from '@/lib/utils';
 import { KhatmaForm } from '@/components/khatma/khatma-form';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 
 export default function HomePage() {
   const router = useRouter();
   const { user, sessionState } = useAuth();
   const { pushToast } = useToast();
   const [drafts, setDrafts] = useState<LocalKhatmaDraft[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const hasDrafts = useMemo(() => drafts.length > 0, [drafts]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const ds = new DraftStore(window.localStorage);
-      setDrafts(ds.listDrafts());
+      const store = new DraftStore(window.localStorage);
+      setDrafts(store.listDrafts());
     }
   }, []);
+
+  const handleDeleteDraft = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setDeletingId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const performDelete = () => {
+    if (!deletingId) return;
+    const store = new DraftStore(window.localStorage);
+    store.deleteDraft(deletingId);
+    setDrafts(store.listDrafts());
+    setShowDeleteConfirm(false);
+    setDeletingId(null);
+    pushToast({ tone: 'success', title: 'Draft deleted.' });
+  };
 
   return (
     <>
@@ -50,17 +69,31 @@ export default function HomePage() {
                     transition={{ duration: 0.4, delay: idx * 0.05 }}
                   >
                     <Panel
-                      className="glass-card group flex cursor-pointer flex-col justify-between space-y-3 border-none p-4 transition-all hover:bg-white/90 active:scale-[0.98]"
+                      className="glass-card group flex h-full flex-col justify-between border-none p-4 ring-1 ring-[var(--line)] shadow-sm transition-all hover:translate-y-[-2px] hover:shadow-md active:scale-[0.99]"
                       onClick={() => router.push(`/draft?id=${draft.id}`)}
                     >
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <div className="flex items-center justify-between">
-                          <h3 className="line-clamp-1 font-bold text-[var(--foreground)]">{draft.deceasedName}</h3>
-                          <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--accent-strong)]">Draft</span>
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-strong)]/50">
+                            <FolderHeart className="h-4 w-4 text-[var(--gold)]" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--accent-strong)]">Draft</span>
+                            <button
+                              onClick={(e) => handleDeleteDraft(e, draft.id)}
+                              className="rounded-full p-2 text-muted hover:bg-red-50 hover:text-red-500 transition-colors"
+                              title="Delete Draft"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </div>
-                        <p className="line-clamp-1 text-xs text-muted">{draft.description || 'No description provided.'}</p>
+                        <div className="space-y-1">
+                          <h3 className="line-clamp-1 font-[var(--font-heading)] text-lg font-bold leading-tight text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{draft.deceasedName}</h3>
+                          <p className="line-clamp-1 text-xs leading-relaxed text-muted">{draft.description || 'No description provided.'}</p>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                      <div className="mt-3 flex items-center justify-between border-t border-[var(--line)]/50 pt-3 text-[10px] text-muted-foreground">
                         <span>{formatDate(draft.updatedAt)}</span>
                         <span className="font-bold text-[var(--accent)] transition-colors group-hover:text-[var(--accent-strong)]">View Details →</span>
                       </div>
@@ -168,6 +201,13 @@ export default function HomePage() {
 
         <SiteFooter />
       </main>
+      <ConfirmModal
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={performDelete}
+        title="Delete Draft"
+        description="Are you sure you want to delete this local draft? This action cannot be undone."
+      />
     </>
   );
 }

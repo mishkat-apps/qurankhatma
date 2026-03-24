@@ -25,16 +25,26 @@ export function subscribeToCloudKhatma(db: Firestore, khatmaId: string, callback
 
   let currentKhatma: CloudKhatma | null = null;
   let currentJuz: JuzRecord[] = [];
+  let khatmaReady = false;
+  let juzReady = false;
 
-  const emit = () => callback({ khatma: currentKhatma, juz: currentJuz });
+  const emit = () => {
+    // Only emit for the first time once BOTH are ready.
+    // After that, emit on every update.
+    if (khatmaReady && juzReady) {
+      callback({ khatma: currentKhatma, juz: currentJuz });
+    }
+  };
 
   const unsubKhatma = onSnapshot(khatmaRef, (snapshot) => {
     currentKhatma = snapshot.exists() ? (snapshot.data() as CloudKhatma) : null;
+    khatmaReady = true;
     emit();
   });
 
   const unsubJuz = onSnapshot(juzRef, (snapshot) => {
     currentJuz = snapshot.docs.map((item) => item.data() as JuzRecord);
+    juzReady = true;
     emit();
   });
 

@@ -44,7 +44,7 @@ export function KhatmaForm({ className, isHero = false }: KhatmaFormProps) {
       deceasedName: form.deceasedName.trim(),
       organizerName: form.organizerName.trim(),
       description: form.description.trim(),
-      targetDate: form.targetDate ? new Date(form.targetDate.split('/').reverse().join('-')).toISOString() : null,
+      targetDate: form.targetDate ? new Date(form.targetDate).toISOString() : null,
     };
 
     if (sessionState === 'organizer' && user) {
@@ -129,13 +129,13 @@ export function KhatmaForm({ className, isHero = false }: KhatmaFormProps) {
         <label className={labelClasses}>Completion Date (Optional)</label>
         <div className="relative">
           <input
-            type="text"
-            placeholder="dd/mm/yyyy"
-            className={inputClasses}
+            type="date"
+            min={new Date().toISOString().split('T')[0]}
+            className={cn(inputClasses, "appearance-none")}
             value={form.targetDate}
             onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
           />
-          {!isHero && <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" />}
+          {!isHero && <Calendar className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted pointer-events-none" />}
         </div>
       </div>
 

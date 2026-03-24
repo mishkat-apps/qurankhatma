@@ -98,6 +98,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({ ok: true });
   } catch (error) {
+    console.error('[API/Khatmas/Juz] Error:', error);
     const message = error instanceof Error ? error.message : 'Could not update this juz.';
     const status = message === 'Khatma not found.' ? 404 : 409;
     return NextResponse.json({ error: message }, { status });

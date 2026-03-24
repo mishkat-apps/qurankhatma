@@ -17,9 +17,11 @@ import {
   releaseOwnJuz,
   subscribeToCloudKhatma,
   updateCloudKhatmaMeta,
+  deleteCloudKhatma,
 } from '@/lib/repositories/cloud-khatmas';
 import type { CloudKhatma, JuzRecord } from '@/lib/types';
 import { DraftStore } from '@/lib/data/draft-store';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 
 export function CloudKhatmaPage({ id }: { id: string }) {
   const { user, sessionState, hasFirebase } = useAuth();
@@ -27,11 +29,17 @@ export function CloudKhatmaPage({ id }: { id: string }) {
   const router = useRouter();
   const [khatma, setKhatma] = useState<CloudKhatma | null>(null);
   const [juz, setJuz] = useState<JuzRecord[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (!hasFirebase) return;
     const db = getFirebaseDb();
     if (!db) return;
+
+    // Reset state to show skeletons for the new ID
+    setKhatma(null);
+    setJuz([]);
 
     const store = new DraftStore(window.localStorage);
     store.markVisited(id);
@@ -79,6 +87,26 @@ export function CloudKhatmaPage({ id }: { id: string }) {
 
   const db = getFirebaseDb();
   const isOrganizer = sessionState === 'organizer' && user?.uid === khatma.ownerUid;
+
+  const handleDelete = async () => {
+    if (!khatma || !user || !isOrganizer) return;
+    setShowConfirm(true);
+  };
+
+  const performDelete = async () => {
+    if (!khatma || !user || !isOrganizer) return;
+    setShowConfirm(false);
+    setIsDeleting(true);
+    try {
+      const token = await user.getIdToken();
+      await deleteCloudKhatma({ khatmaId: id, token });
+      pushToast({ tone: 'success', title: 'Khatma deleted.' });
+      router.push('/dashboard');
+    } catch (error) {
+      pushToast({ tone: 'error', title: error instanceof Error ? error.message : 'Could not delete the khatma.' });
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <>
@@ -167,10 +195,20 @@ export function CloudKhatmaPage({ id }: { id: string }) {
                   }
                 : undefined
             }
+            onDelete={isOrganizer ? handleDelete : undefined}
+            busy={isDeleting}
           />
         </div>
       </main>
       <SiteFooter />
+      <ConfirmModal
+        open={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={performDelete}
+        title="Delete Shared Khatma"
+        description="Are you sure you want to delete this shared khatma? All community progress will be lost forever."
+        busy={isDeleting}
+      />
     </>
   );
 }

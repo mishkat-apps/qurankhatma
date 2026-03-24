@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { BookOpen, Clock3, ExternalLink, FolderHeart, History, Sparkles, LayoutGrid, Trash2, Loader2 } from 'lucide-react';
+import { BookOpen, Clock3, History, Sparkles, FolderHeart, Trash2, Loader2, UserCheck, LayoutGrid } from 'lucide-react';
 import type { CloudKhatma, LocalKhatmaDraft } from '@/lib/types';
 import { splitCloudKhatmas } from '@/lib/domain/khatma';
 import { formatDate } from '@/lib/utils';
@@ -14,6 +14,7 @@ import { useAuth } from '@/components/providers/auth-provider';
 import { useToast } from '@/components/providers/toast-provider';
 import { DraftStore } from '@/lib/data/draft-store';
 import { deleteCloudKhatma } from '@/lib/repositories/cloud-khatmas';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 
 interface DashboardViewProps {
   localDrafts: LocalKhatmaDraft[];
@@ -83,46 +84,82 @@ const item: Variants = {
   }
 };
 
-export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps) {
-  const router = useRouter();
+export function DashboardView({ localDrafts: initialLocalDrafts, cloudKhatmas: initialCloudKhatmas }: DashboardViewProps) {
   const { user } = useAuth();
   const { pushToast } = useToast();
+  
+  const [localDrafts, setLocalDrafts] = useState(initialLocalDrafts);
+  const [cloudKhatmas, setCloudKhatmas] = useState(initialCloudKhatmas);
+  
   const [activeTab, setActiveTab] = useState<Tab>('active');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const split = splitCloudKhatmas(cloudKhatmas);
+  
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    busy?: boolean;
+  }>({
+    open: false,
+    title: '',
+    description: '',
+    onConfirm: () => {},
+  });
 
-  const handleDeleteDraft = async (e: React.MouseEvent, id: string) => {
+  const split = useMemo(() => splitCloudKhatmas(cloudKhatmas), [cloudKhatmas]);
+
+  const handleDeleteDraft = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this draft?')) return;
     
-    const store = new DraftStore(window.localStorage);
-    store.deleteDraft(id);
-    pushToast({ title: 'Draft deleted', tone: 'success' });
-    window.location.reload(); // Quick way to refresh local drafts
+    setConfirmModal({
+      open: true,
+      title: 'Delete Draft',
+      description: 'Are you sure you want to delete this local draft? This action cannot be undone.',
+      onConfirm: () => {
+        const store = new DraftStore(window.localStorage);
+        store.deleteDraft(id);
+        setLocalDrafts(prev => prev.filter(d => d.id !== id));
+        pushToast({ title: 'Draft deleted', tone: 'success' });
+        setConfirmModal(prev => ({ ...prev, open: false }));
+      }
+    });
   };
 
-  const handleDeleteCloud = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteCloud = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this shared khatma? This cannot be undone.')) return;
     
-    if (!user) return;
-    setIsDeleting(id);
-    try {
-      const token = await user.getIdToken();
-      await deleteCloudKhatma({ khatmaId: id, token });
-      pushToast({ title: 'Khatma deleted', tone: 'success' });
-      // The subscription in the parent page will handle the UI update
-    } catch (error) {
-      pushToast({ 
-        title: error instanceof Error ? error.message : 'Failed to delete khatma', 
-        tone: 'error' 
-      });
-    } finally {
-      setIsDeleting(null);
-    }
+    setConfirmModal({
+      open: true,
+      title: 'Delete Shared Khatma',
+      description: 'Are you sure you want to delete this shared khatma? All community progress will be lost forever.',
+      onConfirm: async () => {
+        if (!user) return;
+        setConfirmModal(prev => ({ ...prev, busy: true }));
+        try {
+          const token = await user.getIdToken();
+          await deleteCloudKhatma({ khatmaId: id, token });
+          setCloudKhatmas(prev => prev.filter(k => k.id !== id));
+          pushToast({ title: 'Khatma deleted', tone: 'success' });
+          setConfirmModal(prev => ({ ...prev, open: false }));
+        } catch (error) {
+          pushToast({ 
+            title: error instanceof Error ? error.message : 'Failed to delete khatma', 
+            tone: 'error' 
+          });
+        } finally {
+          setConfirmModal(prev => ({ ...prev, busy: false }));
+        }
+      }
+    });
   };
+
+  const hasMyClaims = (khatma: CloudKhatma) => {
+    return khatma.juz?.some(j => j.participantUid === user?.uid && j.state === 'claimed');
+  };
+
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: 'active', label: 'Active shared', count: split.active.length },
@@ -179,7 +216,7 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
             {localDrafts.map((draft) => (
               <motion.div key={draft.id} variants={item}>
                 <Link href={`/draft?id=${draft.id}`}>
-                  <Panel className="glass-card group flex h-full flex-col justify-between border-none p-5 ring-1 ring-[var(--line)] shadow-md transition-all hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.99]">
+                  <Panel className="glass-card group flex h-full flex-col justify-between border-none p-4 ring-1 ring-[var(--line)] shadow-sm transition-all hover:translate-y-[-2px] hover:shadow-md active:scale-[0.99]">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-strong)]/50">
@@ -188,19 +225,20 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
                         <button
                           onClick={(e) => handleDeleteDraft(e, draft.id)}
                           className="rounded-full p-2 text-muted hover:bg-red-50 hover:text-red-500 transition-colors"
+                          aria-label={`Delete draft for ${draft.deceasedName}`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
                       <div className="space-y-1">
-                        <div className="font-[var(--font-heading)] text-2xl leading-tight text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{draft.deceasedName}</div>
+                        <div className="font-[var(--font-heading)] text-lg leading-tight text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{draft.deceasedName}</div>
                         {draft.organizerName && (
                           <p className="text-[10px] font-medium text-muted">by {draft.organizerName}</p>
                         )}
                         <p className="line-clamp-1 text-xs leading-relaxed text-muted">{draft.description || 'No dedication note yet.'}</p>
                       </div>
                     </div>
-                    <div className="mt-4 space-y-3 pt-3 border-t border-[var(--line)]/50">
+                    <div className="mt-3 space-y-3 pt-3 border-t border-[var(--line)]/50">
                       <ProgressBar completed={draft.juz?.filter((j) => j.state === 'completed').length ?? 0} />
                     </div>
                   </Panel>
@@ -277,14 +315,24 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
                       {split.active.map((khatma) => (
                         <motion.div key={khatma.id} variants={item}>
                           <Link href={`/khatma?id=${khatma.id}`}>
-                            <Panel className="glass-card group flex h-full flex-col justify-between border-none p-6 ring-1 ring-[var(--line)] shadow-md transition-all hover:translate-y-[-4px] hover:shadow-xl active:scale-[0.98]">
-                              <div className="space-y-4">
+                            <Panel className="glass-card group flex h-full flex-col justify-between border-none p-4 ring-1 ring-[var(--line)] shadow-sm transition-all hover:translate-y-[-2px] hover:shadow-md active:scale-[0.99]">
+                              <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-strong)]/50">
+                                    <Sparkles className="h-4 w-4 text-[var(--accent)]" />
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    {hasMyClaims(khatma) && (
+                                      <div className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[9px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                                        <UserCheck className="h-3 w-3" />
+                                        <span>My Claims</span>
+                                      </div>
+                                    )}
                                     <button
                                       onClick={(e) => handleDeleteCloud(e, khatma.id)}
                                       disabled={isDeleting === khatma.id}
                                       className="rounded-full p-2 text-muted hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-50"
+                                      aria-label={`Delete shared khatma for ${khatma.deceasedName}`}
                                     >
                                       {isDeleting === khatma.id ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -292,21 +340,20 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
                                         <Trash2 className="h-4 w-4" />
                                       )}
                                     </button>
-                                    <ExternalLink className="h-4 w-4 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
                                   </div>
                                 </div>
-                                <div className="space-y-2">
-                                  <div className="font-[var(--font-heading)] text-3xl leading-tight text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{khatma.deceasedName}</div>
+                                <div className="space-y-1">
+                                  <div className="font-[var(--font-heading)] text-lg leading-tight text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{khatma.deceasedName}</div>
                                   {khatma.organizerName && (
-                                    <p className="text-xs font-medium text-muted">by {khatma.organizerName}</p>
+                                    <p className="text-[10px] font-medium text-muted">by {khatma.organizerName}</p>
                                   )}
-                                  <p className="line-clamp-2 text-sm leading-relaxed text-muted">{khatma.description || 'No dedication note yet.'}</p>
+                                  <p className="line-clamp-1 text-xs leading-relaxed text-muted">{khatma.description || 'No dedication note yet.'}</p>
                                 </div>
                               </div>
-                              <div className="mt-6 space-y-4 pt-4 border-t border-[var(--line)]/50">
+                              <div className="mt-3 space-y-3 pt-3 border-t border-[var(--line)]/50">
                                 <ProgressBar completed={khatma.completedCount} />
-                                <div className="flex items-center gap-2 text-xs font-medium text-muted">
-                                  <Clock3 className="h-4 w-4" />
+                                <div className="flex items-center gap-2 text-[10px] font-medium text-muted">
+                                  <Clock3 className="h-3 w-3" />
                                   {formatDate(khatma.targetDate)}
                                 </div>
                               </div>
@@ -338,21 +385,36 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
                       {split.history.map((khatma) => (
                         <motion.div key={khatma.id} variants={item}>
                           <Link href={`/khatma?id=${khatma.id}`}>
-                            <Panel className="glass-card group flex h-full flex-col justify-between border-none p-6 ring-1 ring-[var(--line)] shadow-md transition-all hover:translate-y-[-4px] hover:shadow-xl active:scale-[0.98]">
-                              <div className="space-y-4">
+                            <Panel className="glass-card group flex h-full flex-col justify-between border-none p-4 ring-1 ring-[var(--line)] shadow-sm transition-all hover:translate-y-[-2px] hover:shadow-md active:scale-[0.99]">
+                              <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                  <div className="section-title text-[10px] font-bold tracking-[0.2em]">Completed</div>
-                                  <History className="h-4 w-4 text-emerald-500" />
+                                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-strong)]/50">
+                                    <History className="h-4 w-4 text-emerald-500" />
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="section-title text-[9px] font-bold tracking-[0.2em] opacity-60">Completed</div>
+                                    <button
+                                      onClick={(e) => handleDeleteCloud(e, khatma.id)}
+                                      disabled={isDeleting === khatma.id}
+                                      className="rounded-full p-2 text-muted hover:bg-red-50 hover:text-red-500 transition-colors disabled:opacity-50"
+                                    >
+                                      {isDeleting === khatma.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="space-y-2">
-                                  <div className="font-[var(--font-heading)] text-3xl leading-tight text-[var(--foreground)] opacity-60 group-hover:opacity-100 transition-opacity">{khatma.deceasedName}</div>
-                                  <p className="line-clamp-2 text-sm leading-relaxed text-muted">{khatma.description || 'No dedication note yet.'}</p>
+                                <div className="space-y-1">
+                                  <div className="font-[var(--font-heading)] text-lg leading-tight text-[var(--foreground)] opacity-60 group-hover:opacity-100 transition-opacity">{khatma.deceasedName}</div>
+                                  <p className="line-clamp-1 text-xs leading-relaxed text-muted">{khatma.description || 'No dedication note yet.'}</p>
                                 </div>
                               </div>
-                              <div className="mt-6 space-y-4 pt-4 border-t border-[var(--line)]/50">
+                              <div className="mt-3 space-y-3 pt-3 border-t border-[var(--line)]/50">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Successfully Completed</span>
-                                  <span className="text-xs text-muted">{formatDate(khatma.updatedAt)}</span>
+                                  <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600">Archived Journey</span>
+                                  <span className="text-[10px] text-muted">{formatDate(khatma.updatedAt)}</span>
                                 </div>
                                 <ProgressBar completed={khatma.completedCount} />
                               </div>
@@ -374,6 +436,15 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
           </AnimatePresence>
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmModal.open}
+        onClose={() => setConfirmModal(prev => ({ ...prev, open: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        busy={confirmModal.busy}
+      />
     </div>
   );
 }

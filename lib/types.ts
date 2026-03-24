@@ -37,6 +37,7 @@ export interface CloudKhatma extends BaseKhatma {
   ownerDisplayName: string;
   claimedCount: number;
   completedCount: number;
+  juz?: JuzRecord[];
 }
 
 export interface KhatmaSummary {

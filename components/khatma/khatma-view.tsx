@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CalendarClock, Share2, Users, WandSparkles, CheckCircle2, Clock3, LayoutGrid } from 'lucide-react';
+import { CalendarClock, Share2, Users, WandSparkles, CheckCircle2, Clock3, LayoutGrid, Trash2, Pencil, X } from 'lucide-react';
 import type { JuzRecord } from '@/lib/types';
 import { summarizeJuzRecords } from '@/lib/domain/khatma';
 import { formatDate } from '@/lib/utils';
@@ -29,6 +29,7 @@ interface KhatmaViewProps {
   onRelease: (juzNumber: number) => Promise<void> | void;
   onOrganizerRelease: (juzNumber: number) => Promise<void> | void;
   onSaveMeta?: (payload: { description: string; targetDate: string | null }) => Promise<void> | void;
+  onDelete?: () => void;
 }
 
 const container: any = {
@@ -48,14 +49,27 @@ export function KhatmaView(props: KhatmaViewProps) {
   const summary = useMemo(() => summarizeJuzRecords(props.juz), [props.juz]);
   const [claimingJuz, setClaimingJuz] = useState<number | null>(null);
   const [participantName, setParticipantName] = useState('');
-  const [description, setDescription] = useState(props.description);
-  const [targetDate, setTargetDate] = useState(props.targetDate ?? '');
+  const [isEditingMeta, setIsEditingMeta] = useState(false);
+  const [tempDescription, setTempDescription] = useState(props.description);
+  const [tempTargetDate, setTempTargetDate] = useState(props.targetDate ?? '');
+
+  const today = new Date().toISOString().split('T')[0];
 
   const handleClaimSubmit = () => {
     if (claimingJuz !== null && participantName.trim()) {
       props.onClaim(claimingJuz, participantName.trim());
       setClaimingJuz(null);
       setParticipantName('');
+    }
+  };
+
+  const handleSaveMeta = async () => {
+    if (props.onSaveMeta) {
+      await props.onSaveMeta({
+        description: tempDescription,
+        targetDate: tempTargetDate || null,
+      });
+      setIsEditingMeta(false);
     }
   };
 
@@ -76,11 +90,35 @@ export function KhatmaView(props: KhatmaViewProps) {
               {props.title}
             </h1>
           </div>
-          <p className="max-w-xl text-lg text-muted leading-relaxed">
-            {props.description}
-          </p>
+          <div className="group relative">
+            <p className="max-w-xl text-lg text-muted leading-relaxed">
+              {props.description}
+            </p>
+            {props.isOrganizer && props.onSaveMeta && (
+              <button 
+                onClick={() => {
+                  setTempDescription(props.description);
+                  setTempTargetDate(props.targetDate ?? '');
+                  setIsEditingMeta(true);
+                }}
+                className="absolute -right-8 top-0 p-2 text-muted/40 hover:text-[var(--accent)] transition-colors"
+                title="Edit details"
+              >
+                <Pencil size={18} />
+              </button>
+            )}
+          </div>
           <div className="flex flex-wrap gap-4 pt-2">
-            <div className="flex items-center gap-2 rounded-2xl border border-[var(--line)] bg-white/50 px-5 py-2.5 backdrop-blur-sm shadow-sm transition-all hover:shadow-md">
+            <div 
+              className={`flex items-center gap-2 rounded-2xl border border-[var(--line)] bg-white/50 px-5 py-2.5 backdrop-blur-sm shadow-sm transition-all ${props.isOrganizer ? 'cursor-pointer hover:shadow-md hover:border-[var(--accent)]' : ''}`}
+              onClick={() => {
+                if (props.isOrganizer && props.onSaveMeta) {
+                  setTempDescription(props.description);
+                  setTempTargetDate(props.targetDate ?? '');
+                  setIsEditingMeta(true);
+                }
+              }}
+            >
               <CalendarClock size={18} className="text-[var(--gold)]" />
               <span className="text-sm font-medium">Target: {props.targetDate ? formatDate(props.targetDate) : 'Not set'}</span>
             </div>
@@ -132,6 +170,19 @@ export function KhatmaView(props: KhatmaViewProps) {
               <Share2 size={18} className="mr-2 transition-transform group-hover:scale-110" />
               {props.shareActionLabel}
             </Button>
+
+            {props.onDelete && (
+              <Button 
+                tone="secondary" 
+                size="sm" 
+                className="mt-4 w-full border-red-100 bg-red-50/30 text-red-600 hover:bg-red-50 hover:text-red-700" 
+                onClick={props.onDelete}
+                disabled={props.busy}
+              >
+                <Trash2 size={16} className="mr-2" />
+                {props.mode === 'local' ? 'Delete Draft' : 'Delete Khatma'}
+              </Button>
+            )}
           </Panel>
         </motion.div>
       </section>
@@ -165,7 +216,7 @@ export function KhatmaView(props: KhatmaViewProps) {
           variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: '-100px' }}
+          viewport={{ margin: '-100px' }}
           className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
         >
           {props.juz.length === 0 ? (
@@ -233,6 +284,68 @@ export function KhatmaView(props: KhatmaViewProps) {
                     </Button>
                     <Button className="flex-1 h-12 rounded-2xl shadow-lg shadow-emerald-900/10" onClick={handleClaimSubmit}>
                       Claim Part
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Meta Modal */}
+      <AnimatePresence>
+        {isEditingMeta && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditingMeta(false)}
+              className="absolute inset-0 bg-[var(--foreground)]/30 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg overflow-hidden rounded-[32px] bg-white shadow-2xl ring-1 ring-black/5"
+            >
+              <div className="bg-gradient-to-br from-[var(--accent)] to-[var(--accent-strong)] px-8 py-8 text-white">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-[var(--font-heading)] text-3xl">Edit Details</h3>
+                  <button onClick={() => setIsEditingMeta(false)} className="rounded-full bg-white/10 p-2 hover:bg-white/20 transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+              <div className="p-8">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted/60 px-1">Description</label>
+                    <textarea
+                      placeholder="Enter a description or message"
+                      value={tempDescription}
+                      onChange={(e) => setTempDescription(e.target.value)}
+                      className="focus-ring w-full min-h-[120px] rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-6 py-4 text-base outline-none transition-all focus:bg-white resize-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted/60 px-1">Target Completion Date</label>
+                    <input
+                      type="date"
+                      min={today}
+                      value={tempTargetDate}
+                      onChange={(e) => setTempTargetDate(e.target.value)}
+                      className="focus-ring w-full rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-6 py-4 text-base outline-none transition-all focus:bg-white"
+                    />
+                    <p className="text-xs text-muted/60 px-1 mt-1">Leave empty if no specific target date.</p>
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <Button tone="secondary" className="flex-1 h-12 rounded-2xl" onClick={() => setIsEditingMeta(false)}>
+                      Cancel
+                    </Button>
+                    <Button className="flex-1 h-12 rounded-2xl shadow-lg shadow-emerald-900/10" onClick={handleSaveMeta}>
+                      Save Changes
                     </Button>
                   </div>
                 </div>

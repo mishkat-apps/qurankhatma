@@ -12,6 +12,7 @@ import {
   signOut,
   type User,
 } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { getFirebaseAuthClient, hasFirebaseConfig } from '@/lib/firebase/client';
 import { isPermanentUser } from '@/lib/utils';
@@ -44,6 +45,7 @@ const EMAIL_KEY = 'quran-khatma.email-link';
 const REDIRECT_KEY = 'quran-khatma.email-link-redirect';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -117,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!auth) return;
       await signOut(auth);
       await signInAnonymously(auth);
+      router.push('/');
     },
   }), [ready, sessionState, user]);
 

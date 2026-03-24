@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Sparkles, X, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -26,6 +27,7 @@ export function AuthModal({
 }: AuthModalProps) {
   const { signInWithGoogle, sendMagicLink } = useAuth();
   const { pushToast } = useToast();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState<'google' | 'email' | null>(null);
 
@@ -90,6 +92,7 @@ export function AuthModal({
                       await signInWithGoogle();
                       pushToast({ tone: 'success', title: 'Signed in with Google.' });
                       onClose();
+                      router.push(redirectPath);
                     } catch (error) {
                       pushToast({ tone: 'error', title: error instanceof Error ? error.message : 'Could not sign in.' });
                     } finally {

@@ -12,6 +12,7 @@ import { promoteDraftToCloud } from '@/lib/repositories/cloud-khatmas';
 import { SiteHeader } from '@/components/ui/site-header';
 import { SiteFooter } from '@/components/ui/site-footer';
 import { Panel } from '@/components/ui/panel';
+import { ConfirmModal } from '@/components/ui/confirm-modal';
 
 export function DraftPageContent({ id }: { id: string }) {
   const searchParams = useSearchParams();
@@ -22,6 +23,7 @@ export function DraftPageContent({ id }: { id: string }) {
   const [draft, setDraft] = useState<LocalKhatmaDraft | null>(null);
   const [promoting, setPromoting] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(searchParams.get('share') === '1');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const nextStore = new DraftStore(window.localStorage);
@@ -58,12 +60,25 @@ export function DraftPageContent({ id }: { id: string }) {
     [draft, pushToast, router, store, user],
   );
 
+  const handleDelete = () => {
+    if (!draft || !store) return;
+    setShowDeleteConfirm(true);
+  };
+
+  const performDelete = () => {
+    if (!draft || !store) return;
+    store.deleteDraft(draft.id);
+    pushToast({ tone: 'success', title: 'Draft deleted.' });
+    router.push('/');
+  };
+
   useEffect(() => {
-    if (showAuthModal && sessionState === 'organizer' && user && !promoting) {
-      setShowAuthModal(false);
+    const isShareMode = searchParams.get('share') === '1';
+    if ((showAuthModal || isShareMode) && sessionState === 'organizer' && user && !promoting) {
+      if (showAuthModal) setShowAuthModal(false);
       void promote();
     }
-  }, [promote, promoting, sessionState, showAuthModal, user]);
+  }, [promote, promoting, searchParams, sessionState, showAuthModal, user]);
 
   if (!draft) {
     return (
@@ -109,7 +124,7 @@ export function DraftPageContent({ id }: { id: string }) {
                 ? ({
                     ...record,
                     state: 'claimed',
-                    participantUid: 'local-owner',
+                    participantUid: user?.uid ?? 'local-owner',
                     participantName: name || null,
                     claimedAt: new Date().toISOString(),
                     completedAt: null,
@@ -158,6 +173,7 @@ export function DraftPageContent({ id }: { id: string }) {
             });
             pushToast({ tone: 'success', title: 'Local draft details saved.' });
           }}
+          onDelete={handleDelete}
         />
       </div>
       <SiteFooter />
@@ -167,6 +183,13 @@ export function DraftPageContent({ id }: { id: string }) {
         title="Sign in to publish"
         description="Your draft will stay on this browser until you publish it. Once signed in, we will convert it into a shared khatma."
         redirectPath={`/draft?id=${draft.id}&share=1`}
+      />
+      <ConfirmModal
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={performDelete}
+        title="Delete Draft"
+        description="Are you sure you want to delete this local draft? This action cannot be undone."
       />
     </main>
   );
