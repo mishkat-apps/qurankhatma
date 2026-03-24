@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, Loader2, ScrollText, Share2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { DraftStore } from '@/lib/data/draft-store';
 import type { LocalKhatmaDraft } from '@/lib/types';
 import { useAuth } from '@/components/providers/auth-provider';
@@ -11,103 +12,72 @@ import { Button } from '@/components/ui/button';
 import { Panel } from '@/components/ui/panel';
 import { SiteHeader } from '@/components/ui/site-header';
 import { SiteFooter } from '@/components/ui/site-footer';
-import { formatDate } from '@/lib/utils';
-import { motion } from 'framer-motion';
-import { promoteDraftToCloud } from '@/lib/repositories/cloud-khatmas';
+import { formatDate, cn } from '@/lib/utils';
+import { KhatmaForm } from '@/components/khatma/khatma-form';
 
 export default function HomePage() {
   const router = useRouter();
   const { user, sessionState } = useAuth();
   const { pushToast } = useToast();
-  const [store, setStore] = useState<DraftStore | null>(null);
   const [drafts, setDrafts] = useState<LocalKhatmaDraft[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
-  const [form, setForm] = useState({
-    deceasedName: '',
-    organizerName: '',
-    description: '',
-    targetDate: '',
-  });
-
-  useEffect(() => {
-    const nextStore = new DraftStore(window.localStorage);
-    setStore(nextStore);
-    setDrafts(nextStore.listDrafts());
-  }, []);
-
   const hasDrafts = useMemo(() => drafts.length > 0, [drafts]);
 
-  const handleCreateDraft = async () => {
-    if (!form.deceasedName.trim() || !form.organizerName.trim()) {
-      pushToast({ 
-        title: 'Please provide both the deceased name and your name.', 
-        tone: 'error' 
-      });
-      return;
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const ds = new DraftStore(window.localStorage);
+      setDrafts(ds.listDrafts());
     }
-    
-    if (!store) return;
-    setIsCreating(true);
-    
-    const draftData = {
-      deceasedName: form.deceasedName.trim(),
-      organizerName: form.organizerName.trim(),
-      description: form.description.trim(),
-      targetDate: form.targetDate ? new Date(form.targetDate.split('/').reverse().join('-')).toISOString() : null,
-    };
-
-    if (sessionState === 'organizer' && user) {
-      try {
-        const token = await user.getIdToken();
-        const temporaryDraft = {
-          ...draftData,
-          id: 'temp-' + Date.now(),
-          mode: 'local' as const,
-          status: 'active' as const,
-          ownerLabel: draftData.organizerName,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          juz: [],
-        };
-        const khatmaResponse = await promoteDraftToCloud({ 
-          draft: temporaryDraft as any, 
-          currentUser: user,
-          token 
-        });
-        pushToast({ title: 'Khatma created successfully!', tone: 'success' });
-        router.push(`/khatma/${khatmaResponse.id}`);
-        return;
-      } catch (error) {
-        console.error('Khatma creation failed:', error);
-        pushToast({ 
-          title: error instanceof Error ? error.message : 'Failed to create khatma. Saving as local draft instead.', 
-          tone: 'error' 
-        });
-      } finally {
-        setIsCreating(false);
-      }
-    }
-    
-    try {
-      const newDraft = store.createDraft(draftData);
-      
-      if (newDraft) {
-        router.push(`/draft/${newDraft.id}`);
-      }
-    } finally {
-      setIsCreating(false);
-    }
-  };
+  }, []);
 
   return (
     <>
       <main className="page-shell pb-0 overflow-x-hidden">
         <SiteHeader />
-        
+
         <div className="mx-auto flex w-full max-w-6xl flex-col px-4 md:px-6">
+          {hasDrafts && (
+            <section className="pt-12 pb-0">
+              <div className="mb-6">
+                <p className="section-title text-[10px] font-bold tracking-[0.2em] mb-2 uppercase opacity-60">Your Progress</p>
+                <h2 className="font-[var(--font-heading)] text-xl font-bold">Local Drafts</h2>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {drafts.map((draft, idx) => (
+                  <motion.div
+                    key={draft.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: idx * 0.05 }}
+                  >
+                    <Panel
+                      className="glass-card group flex cursor-pointer flex-col justify-between space-y-3 border-none p-4 transition-all hover:bg-white/90 active:scale-[0.98]"
+                      onClick={() => router.push(`/draft?id=${draft.id}`)}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h3 className="line-clamp-1 font-bold text-[var(--foreground)]">{draft.deceasedName}</h3>
+                          <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--accent-strong)]">Draft</span>
+                        </div>
+                        <p className="line-clamp-1 text-xs text-muted">{draft.description || 'No description provided.'}</p>
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{formatDate(draft.updatedAt)}</span>
+                        <span className="font-bold text-[var(--accent)] transition-colors group-hover:text-[var(--accent-strong)]">View Details →</span>
+                      </div>
+                    </Panel>
+                  </motion.div>
+                ))}
+              </div>
+              <div className="mt-12 border-b border-[var(--line)] opacity-40" />
+            </section>
+          )}
+
           {/* ── Hero ── */}
-          <section className="section-spacing grid items-center gap-10 lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_440px]">
-            <motion.div 
+          <section className={cn(
+            "grid items-center gap-10 lg:grid-cols-[1fr_400px] xl:grid-cols-[1fr_440px]",
+            hasDrafts ? "pt-12 pb-[var(--section-spacing-val)]" : "section-spacing"
+          )}>
+            <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, ease: 'easeOut' }}
@@ -123,12 +93,12 @@ export default function HomePage() {
               </p>
               <div className="flex flex-wrap gap-4 pt-1">
                 {sessionState !== 'organizer' && (
-                  <Button 
-                    tone="secondary" 
+                  <Button
+                    tone="secondary"
                     className="h-12 px-8 text-base"
                     onClick={() => { window.location.href = '/auth/signin'; }}
                   >
-                    Sign In
+                    Sign In / Sign Up
                   </Button>
                 )}
               </div>
@@ -147,83 +117,13 @@ export default function HomePage() {
                       {sessionState === 'organizer' ? 'Create a Khatma' : 'Start a Khatma'}
                     </h2>
                     <p className="text-sm text-muted">
-                      {sessionState === 'organizer' 
-                        ? 'Quickly create a shared khatma board.' 
+                      {sessionState === 'organizer'
+                        ? 'Quickly create a shared khatma board.'
                         : 'Begin a private draft for a loved one.'}
                     </p>
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                        Deceased Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Abdullah bin Ahmed"
-                        className="w-full rounded-xl bg-[var(--surface)] px-4 py-2.5 text-sm ring-1 ring-[var(--line)] transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                        value={form.deceasedName}
-                        onChange={(e) => setForm({ ...form, deceasedName: e.target.value })}
-                      />
-                    </div>
-                    
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                        Your Name <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Public organizer name"
-                        className="w-full rounded-xl bg-[var(--surface)] px-4 py-2.5 text-sm ring-1 ring-[var(--line)] transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                        value={form.organizerName}
-                        onChange={(e) => setForm({ ...form, organizerName: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Completion Date (Optional)</label>
-                      <input
-                        type="text"
-                        placeholder="dd/mm/yyyy"
-                        className="w-full rounded-xl bg-[var(--surface)] px-4 py-2.5 text-sm ring-1 ring-[var(--line)] transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                        value={form.targetDate}
-                        onChange={(e) => setForm({ ...form, targetDate: e.target.value })}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Description (Optional)</label>
-                      <textarea
-                        placeholder="A short message for participants..."
-                        rows={2}
-                        className="w-full resize-none rounded-xl bg-[var(--surface)] px-4 py-2.5 text-sm ring-1 ring-[var(--line)] transition-all focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-                        value={form.description}
-                        onChange={(e) => setForm({ ...form, description: e.target.value })}
-                      />
-                    </div>
-
-                    <Button
-                      size="lg"
-                      className="w-full py-6 text-base shadow-lg hover:shadow-[0_0_20px_var(--accent-soft)] transition-all hover:scale-[1.02] active:scale-[0.98]"
-                      onClick={handleCreateDraft}
-                      disabled={isCreating}
-                    >
-                      {isCreating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        sessionState === 'organizer' ? 'Create Khatma' : 'Create Draft'
-                      )}
-                    </Button>
-                    
-                    <p className="text-center text-[10px] text-muted-foreground">
-                      {sessionState === 'organizer'
-                        ? 'Khatma will be created in the cloud'
-                        : 'No sign-in required to begin'}
-                    </p>
-                  </div>
+                  <KhatmaForm isHero />
                 </div>
               </Panel>
             </motion.div>
@@ -262,50 +162,10 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* ── Drafts ── */}
-          {hasDrafts && (
-            <section className="section-spacing border-t border-[var(--line)]">
-              <div className="mb-8">
-                <p className="section-title text-xs font-bold tracking-[0.2em] mb-3 uppercase">Your Progress</p>
-                <h2 className="font-[var(--font-heading)] text-3xl md:text-4xl">Local Drafts</h2>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {drafts.map((draft, idx) => (
-                  <motion.div
-                    key={draft.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: idx * 0.05 }}
-                  >
-                    <Panel className="glass-card group flex h-full flex-col justify-between space-y-4 border-none transition-all hover:bg-white/90">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="line-clamp-1 font-bold text-[var(--foreground)]">{draft.deceasedName}</h3>
-                          <span className="rounded-full bg-[var(--surface)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--accent)]">Draft</span>
-                        </div>
-                        <p className="line-clamp-2 text-sm text-muted">{draft.description || 'No description provided.'}</p>
-                      </div>
-                      <div className="flex items-center justify-between pt-2">
-                        <span className="text-xs text-muted-foreground">{formatDate(draft.updatedAt)}</span>
-                        <Button
-                          tone="ghost"
-                          size="sm"
-                          className="h-8 px-3 text-xs font-bold text-[var(--accent)] opacity-0 transition-opacity group-hover:opacity-100"
-                          onClick={() => router.push(`/draft/${draft.id}`)}
-                        >
-                          View Details
-                        </Button>
-                      </div>
-                    </Panel>
-                  </motion.div>
-                ))}
-              </div>
-            </section>
-          )}
+
 
         </div>
-        
+
         <SiteFooter />
       </main>
     </>

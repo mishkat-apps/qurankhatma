@@ -12,6 +12,7 @@ import { getFirebaseDb } from '@/lib/firebase/client';
 import {
   claimJuz,
   completeOwnJuz,
+  undoCompleteOwnJuz,
   releaseClaimAsOrganizer,
   releaseOwnJuz,
   subscribeToCloudKhatma,
@@ -121,6 +122,16 @@ export function CloudKhatmaPage({ id }: { id: string }) {
                 pushToast({ tone: 'success', title: `Juz ${juzNumber} marked complete.` });
               } catch (error) {
                 pushToast({ tone: 'error', title: error instanceof Error ? error.message : 'Could not complete this juz.' });
+              }
+            }}
+            onUndo={async (juzNumber) => {
+              if (!user) return;
+              try {
+                const token = await user.getIdToken();
+                await undoCompleteOwnJuz({ khatmaId: khatma.id, juzNumber, token });
+                pushToast({ tone: 'success', title: `Juz ${juzNumber} recorded reading removed.` });
+              } catch (error) {
+                pushToast({ tone: 'error', title: error instanceof Error ? error.message : 'Could not undo this completion.' });
               }
             }}
             onRelease={async (juzNumber) => {

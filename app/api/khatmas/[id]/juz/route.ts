@@ -4,11 +4,12 @@ import {
   applyClaimToJuz,
   applyCompletionToJuz,
   applyReleaseToJuz,
+  applyUndoCompleteToJuz,
   summarizeCloudMutation,
 } from '@/lib/domain/cloud-khatma-mutations';
 import type { JuzRecord } from '@/lib/types';
 
-type JuzAction = 'claim' | 'complete' | 'release';
+type JuzAction = 'claim' | 'complete' | 'release' | 'undo';
 
 function unauthorized(message = 'Unauthorized') {
   return NextResponse.json({ error: message }, { status: 401 });
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { id } = await params;
     const body = (await request.json()) as { action?: JuzAction; juzNumber?: number; participantName?: string };
 
-    if (!body.action || !['claim', 'complete', 'release'].includes(body.action)) {
+    if (!body.action || !['claim', 'complete', 'release', 'undo'].includes(body.action)) {
       return badRequest('Missing or invalid juz action.');
     }
 
@@ -55,23 +56,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const juzSnapshot = await transaction.get(khatmaRef.collection('juz').orderBy('juzNumber', 'asc'));
       const currentJuz = juzSnapshot.docs.map((item) => item.data() as JuzRecord);
 
-      const mutation = body.action === 'claim'
-        ? applyClaimToJuz(currentJuz, {
-            juzNumber: body.juzNumber!,
-            participantUid: decoded.uid,
-            participantName: body.participantName!.trim(),
-            now,
-          })
-        : body.action === 'complete'
-          ? applyCompletionToJuz(currentJuz, {
-              juzNumber: body.juzNumber!,
-              participantUid: decoded.uid,
-              now,
-            })
-          : applyReleaseToJuz(currentJuz, {
-              juzNumber: body.juzNumber!,
-              participantUid: decoded.uid,
-            });
+      let mutation;
+      if (body.action === 'claim') {
+        mutation = applyClaimToJuz(currentJuz, {
+          juzNumber: body.juzNumber!,
+          participantUid: decoded.uid,
+          participantName: body.participantName!.trim(),
+          now,
+        });
+      } else if (body.action === 'complete') {
+        mutation = applyCompletionToJuz(currentJuz, {
+          juzNumber: body.juzNumber!,
+          participantUid: decoded.uid,
+          now,
+        });
+      } else if (body.action === 'undo') {
+        mutation = applyUndoCompleteToJuz(currentJuz, {
+          juzNumber: body.juzNumber!,
+          participantUid: decoded.uid,
+        });
+      } else {
+        mutation = applyReleaseToJuz(currentJuz, {
+          juzNumber: body.juzNumber!,
+          participantUid: decoded.uid,
+        });
+      }
 
       const summary = summarizeCloudMutation(mutation.nextJuz);
       transaction.set(khatmaRef.collection('juz').doc(String(body.juzNumber)), mutation.updatedRecord, { merge: true });

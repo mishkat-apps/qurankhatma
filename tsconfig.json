@@ -37,17 +37,6 @@
   ],
   "exclude": [
     "node_modules",
-    "App.tsx",
-    "index.tsx",
-    "index.html",
-    "metadata.json",
-    "types.ts",
-    "vite.config.ts",
-    "data/**",
-    "services/**",
-    "components/CreateKhatamModal.tsx",
-    "components/FeedbackBox.tsx",
-    "components/FeedbackModal.tsx",
-    "components/JuzCard.tsx"
+    ".next"
   ]
 }

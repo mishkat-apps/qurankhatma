@@ -25,6 +25,7 @@ interface KhatmaViewProps {
   onShare: () => void;
   onClaim: (juzNumber: number, name: string) => Promise<void> | void;
   onComplete: (juzNumber: number) => Promise<void> | void;
+  onUndo: (juzNumber: number) => Promise<void> | void;
   onRelease: (juzNumber: number) => Promise<void> | void;
   onOrganizerRelease: (juzNumber: number) => Promise<void> | void;
   onSaveMeta?: (payload: { description: string; targetDate: string | null }) => Promise<void> | void;
@@ -180,6 +181,7 @@ export function KhatmaView(props: KhatmaViewProps) {
                   isOrganizer={props.isOrganizer}
                   onClaim={(juzNumber) => setClaimingJuz(juzNumber)}
                   onComplete={props.onComplete}
+                  onUndo={props.onUndo}
                   onRelease={props.onRelease}
                   onOrganizerRelease={props.onOrganizerRelease}
                 />

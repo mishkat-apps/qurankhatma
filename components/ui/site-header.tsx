@@ -59,7 +59,7 @@ export function SiteHeader() {
             </div>
           ) : (
             <Link href={'/auth/signin' as any}>
-              <Button tone="primary" className="h-10 px-6 shadow-md">Sign In</Button>
+              <Button tone="primary" className="h-10 px-6 shadow-md">Sign In / Sign Up</Button>
             </Link>
           )}
         </div>
@@ -112,7 +112,7 @@ export function SiteHeader() {
                   </button>
                 ) : (
                   <Link href={'/auth/signin' as any} className="flex items-center gap-3 rounded-2xl px-4 py-3 text-muted transition-colors hover:bg-[var(--accent-soft)] hover:text-[var(--accent-strong)]" onClick={() => setMobileOpen(false)}>
-                    Sign In
+                    Sign In / Sign Up
                   </Link>
                 )}
               </nav>

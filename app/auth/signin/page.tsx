@@ -80,9 +80,9 @@ export default function SignInPage() {
                     <Logo size={48} className="text-white drop-shadow-md" />
                   </div>
                 </motion.div>
-                <motion.h1 variants={itemVariants} className="font-[var(--font-heading)] text-4xl leading-tight">Welcome back</motion.h1>
+                <motion.h1 variants={itemVariants} className="font-[var(--font-heading)] text-4xl leading-tight">Welcome</motion.h1>
                 <motion.p variants={itemVariants} className="mt-4 text-sm text-white/70 max-w-sm mx-auto leading-relaxed">
-                  Sign in to publish your khatma, manage participants, and track your spiritual journey together.
+                  Sign in / Sign up to publish your khatma, manage participants, and track your spiritual journey together.
                 </motion.p>
               </div>
 
@@ -150,7 +150,7 @@ export default function SignInPage() {
                 </motion.div>
                 
                 <motion.p variants={itemVariants} className="text-center text-xs text-muted leading-relaxed max-w-xs mx-auto">
-                  Local drafts doesn't require sign in. You only need an account to publish and share.
+                  Local drafts doesn't require sign in / sign up. You only need an account to publish and share.
                 </motion.p>
               </div>
             </Panel>

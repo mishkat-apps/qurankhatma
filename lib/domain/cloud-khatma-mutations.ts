@@ -100,6 +100,27 @@ export function applyReleaseToJuz(juz: JuzRecord[], input: ParticipantMutationIn
   };
 }
 
+export function applyUndoCompleteToJuz(juz: JuzRecord[], input: ParticipantMutationInput): JuzMutationResult {
+  const record = getRecord(juz, input.juzNumber);
+  if (record.participantUid !== input.participantUid) {
+    throw new Error('Only the person who completed this juz can undo it.');
+  }
+  if (record.state !== 'completed') {
+    throw new Error('Only completed juz can be undone.');
+  }
+
+  const updatedRecord: JuzRecord = {
+    ...record,
+    state: 'claimed',
+    completedAt: null,
+  };
+
+  return {
+    updatedRecord,
+    nextJuz: replaceRecord(juz, updatedRecord),
+  };
+}
+
 export function summarizeCloudMutation(juz: JuzRecord[]): CloudMutationSummary {
   const summary = summarizeJuzRecords(juz);
 

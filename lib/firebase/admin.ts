@@ -16,13 +16,14 @@ function ensureAdminApp() {
   const privateKey = getPrivateKey();
   const projectId = process.env.FIREBASE_PROJECT_ID;
 
-  if (!clientEmail || !privateKey || !projectId) {
-    throw new Error('Missing Firebase Admin environment variables.');
+  if (clientEmail && privateKey && projectId) {
+    return initializeApp({
+      credential: cert({ clientEmail, privateKey, projectId }),
+    });
   }
 
-  return initializeApp({
-    credential: cert({ clientEmail, privateKey, projectId }),
-  });
+  // Fallback for Cloud Functions (uses default credentials) or Build time
+  return initializeApp();
 }
 
 export function getAdminAuth() {

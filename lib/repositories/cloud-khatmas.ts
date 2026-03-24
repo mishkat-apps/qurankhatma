@@ -61,7 +61,7 @@ export async function updateCloudKhatmaMeta(db: Firestore, khatmaId: string, pay
 }
 
 async function mutateJuz(params: {
-  action: 'claim' | 'complete' | 'release';
+  action: 'claim' | 'complete' | 'release' | 'undo';
   khatmaId: string;
   juzNumber: number;
   token: string;
@@ -108,6 +108,15 @@ export async function completeOwnJuz(params: { khatmaId: string; juzNumber: numb
 export async function releaseOwnJuz(params: { khatmaId: string; juzNumber: number; token: string }) {
   await mutateJuz({
     action: 'release',
+    khatmaId: params.khatmaId,
+    juzNumber: params.juzNumber,
+    token: params.token,
+  });
+}
+
+export async function undoCompleteOwnJuz(params: { khatmaId: string; juzNumber: number; token: string }) {
+  await mutateJuz({
+    action: 'undo',
     khatmaId: params.khatmaId,
     juzNumber: params.juzNumber,
     token: params.token,

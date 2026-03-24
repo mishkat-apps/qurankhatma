@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { BookOpen, Clock3, ExternalLink, FolderHeart, History, Sparkles, LayoutGrid, Trash2, Loader2 } from 'lucide-react';
 import type { CloudKhatma, LocalKhatmaDraft } from '@/lib/types';
 import { splitCloudKhatmas } from '@/lib/domain/khatma';
@@ -59,7 +59,7 @@ function EmptyState({ icon: Icon, title, description, action }: { icon: React.Co
   );
 }
 
-const container: any = {
+const container: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
@@ -70,7 +70,7 @@ const container: any = {
   }
 };
 
-const item: any = {
+const item: Variants = {
   hidden: { opacity: 0, y: 20 },
   show: { 
     opacity: 1, 
@@ -126,12 +126,11 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: 'active', label: 'Active shared', count: split.active.length },
-    { key: 'drafts', label: 'Local drafts', count: localDrafts.length },
     { key: 'history', label: 'Completed', count: split.history.length },
   ];
 
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-8 pb-16">
       {/* Stats row */}
       <motion.section 
         variants={container}
@@ -158,10 +157,74 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
           </motion.div>
         ))}
       </motion.section>
+      
+      {/* Local Drafts Section - Moved to top */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="section-title text-[10px] font-bold tracking-[0.2em] uppercase">Local Drafts</div>
+          {localDrafts.length > 0 && (
+            <span className="text-[10px] font-bold bg-[var(--accent-soft)] text-[var(--accent-strong)] px-2 py-0.5 rounded-full">
+              {localDrafts.length}
+            </span>
+          )}
+        </div>
+        
+        {localDrafts.length > 0 ? (
+          <motion.div 
+            variants={container}
+            initial="hidden"
+            animate="show"
+            className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+          >
+            {localDrafts.map((draft) => (
+              <motion.div key={draft.id} variants={item}>
+                <Link href={`/draft?id=${draft.id}`}>
+                  <Panel className="glass-card group flex h-full flex-col justify-between border-none p-5 ring-1 ring-[var(--line)] shadow-md transition-all hover:translate-y-[-2px] hover:shadow-lg active:scale-[0.99]">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-strong)]/50">
+                          <FolderHeart className="h-4 w-4 text-[var(--gold)]" />
+                        </div>
+                        <button
+                          onClick={(e) => handleDeleteDraft(e, draft.id)}
+                          className="rounded-full p-2 text-muted hover:bg-red-50 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="font-[var(--font-heading)] text-2xl leading-tight text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{draft.deceasedName}</div>
+                        {draft.organizerName && (
+                          <p className="text-[10px] font-medium text-muted">by {draft.organizerName}</p>
+                        )}
+                        <p className="line-clamp-1 text-xs leading-relaxed text-muted">{draft.description || 'No dedication note yet.'}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 space-y-3 pt-3 border-t border-[var(--line)]/50">
+                      <ProgressBar completed={draft.juz?.filter((j) => j.state === 'completed').length ?? 0} />
+                    </div>
+                  </Panel>
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
+        ) : (
+          <Panel className="glass-card flex flex-col items-center gap-3 py-10 text-center border-none ring-1 ring-[var(--line)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--surface-strong)]/50">
+              <FolderHeart className="h-6 w-6 text-[var(--gold)]" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-[var(--font-heading)] text-xl">No drafts yet</h3>
+              <p className="max-w-xs text-xs text-muted">Create a local draft to start a private Quran completion.</p>
+            </div>
+            <Link href="/"><Button size="sm"><BookOpen className="h-4 w-4" />Create a draft</Button></Link>
+          </Panel>
+        )}
+      </section>
 
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Tabs */}
-        <div className="inline-flex w-full items-center justify-center">
+        <div className="inline-flex w-full items-center justify-start">
           <div className="flex w-full max-w-2xl gap-2 rounded-full border border-[var(--line)] bg-[rgba(255,255,255,0.4)] p-1.5 backdrop-blur-md shadow-inner md:w-auto">
             {tabs.map((tab) => (
               <button
@@ -201,64 +264,6 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-              {activeTab === 'drafts' && (
-                <section>
-                  {localDrafts.length > 0 ? (
-                    <motion.div 
-                      variants={container}
-                      initial="hidden"
-                      animate="show"
-                      className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
-                    >
-                      {localDrafts.map((draft) => (
-                        <motion.div key={draft.id} variants={item}>
-                          <Link href={`/draft/${draft.id}`}>
-                            <Panel className="glass-card group flex h-full flex-col justify-between border-none p-6 ring-1 ring-[var(--line)] shadow-md transition-all hover:translate-y-[-4px] hover:shadow-xl active:scale-[0.98]">
-                              <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                  <div className="section-title text-[10px] font-bold tracking-[0.2em]">Local Draft</div>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={(e) => handleDeleteDraft(e, draft.id)}
-                                      className="rounded-full p-2 text-muted hover:bg-red-50 hover:text-red-500 transition-colors"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
-                                    <div className="rounded-full bg-[var(--surface-strong)]/50 p-2 opacity-0 transition-opacity group-hover:opacity-100">
-                                      <Sparkles className="h-4 w-4 text-[var(--gold)]" />
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <div className="font-[var(--font-heading)] text-3xl leading-tight text-[var(--foreground)] group-hover:text-[var(--accent)] transition-colors">{draft.deceasedName}</div>
-                                  {draft.organizerName && (
-                                    <p className="text-xs font-medium text-muted">by {draft.organizerName}</p>
-                                  )}
-                                  <p className="line-clamp-2 text-sm leading-relaxed text-muted">{draft.description || 'No dedication note yet.'}</p>
-                                </div>
-                              </div>
-                              <div className="mt-6 space-y-4 pt-4 border-t border-[var(--line)]/50">
-                                <ProgressBar completed={draft.juz?.filter((j) => j.state === 'completed').length ?? 0} />
-                                <div className="flex items-center gap-2 text-xs font-medium text-muted">
-                                  <Clock3 className="h-4 w-4" />
-                                  {formatDate(draft.targetDate)}
-                                </div>
-                              </div>
-                            </Panel>
-                          </Link>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                  ) : (
-                    <EmptyState
-                      icon={FolderHeart}
-                      title="No drafts yet"
-                      description="Create your first local draft to start a private Quran completion."
-                      action={<Link href="/"><Button size="lg"><BookOpen className="h-4 w-4" />Create a draft</Button></Link>}
-                    />
-                  )}
-                </section>
-              )}
 
               {activeTab === 'active' && (
                 <section>
@@ -271,7 +276,7 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
                     >
                       {split.active.map((khatma) => (
                         <motion.div key={khatma.id} variants={item}>
-                          <Link href={`/khatma/${khatma.id}`}>
+                          <Link href={`/khatma?id=${khatma.id}`}>
                             <Panel className="glass-card group flex h-full flex-col justify-between border-none p-6 ring-1 ring-[var(--line)] shadow-md transition-all hover:translate-y-[-4px] hover:shadow-xl active:scale-[0.98]">
                               <div className="space-y-4">
                                 <div className="flex items-center justify-between">
@@ -332,7 +337,7 @@ export function DashboardView({ localDrafts, cloudKhatmas }: DashboardViewProps)
                     >
                       {split.history.map((khatma) => (
                         <motion.div key={khatma.id} variants={item}>
-                          <Link href={`/khatma/${khatma.id}`}>
+                          <Link href={`/khatma?id=${khatma.id}`}>
                             <Panel className="glass-card group flex h-full flex-col justify-between border-none p-6 ring-1 ring-[var(--line)] shadow-md transition-all hover:translate-y-[-4px] hover:shadow-xl active:scale-[0.98]">
                               <div className="space-y-4">
                                 <div className="flex items-center justify-between">

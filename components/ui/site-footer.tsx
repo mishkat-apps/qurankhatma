@@ -43,7 +43,7 @@ export function SiteFooter() {
             © {new Date().getFullYear()} Quran Khatma. All rights reserved.
           </p>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            Made with <Heart className="h-3 w-3 fill-[var(--accent)] text-[var(--accent)]" /> for the Ummah
+            Made with <Heart className="h-3 w-3 fill-[var(--accent)] text-[var(--accent)]" /> by <a href="https://imaralabs.co.tz" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors underline underline-offset-4">Imara Labs</a>
           </div>
         </div>
       </div>

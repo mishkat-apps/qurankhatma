@@ -2,6 +2,14 @@
   "projects": {
     "staging": "quran-khatma-app"
   },
-  "targets": {},
+  "targets": {
+    "quran-khatma-app": {
+      "hosting": {
+        "quran-khatma-app": [
+          "quran-khatma-app"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

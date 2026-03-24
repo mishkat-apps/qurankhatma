@@ -22,7 +22,7 @@ export function AuthModal({
   onClose,
   redirectPath = '/dashboard',
   title = 'Elevate your journey',
-  description = 'Sign in to publish your khatma, track progress across devices, and share the reward with your community.',
+  description = 'Sign in / Sign up to publish your khatma, track progress across devices, and share the reward with your community.',
 }: AuthModalProps) {
   const { signInWithGoogle, sendMagicLink } = useAuth();
   const { pushToast } = useToast();

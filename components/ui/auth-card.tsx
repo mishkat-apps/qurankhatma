@@ -14,7 +14,7 @@ interface AuthCardProps {
 }
 
 export function AuthCard({
-  title = 'Sign in to publish and manage shared khatmas',
+  title = 'Sign in / Sign up to publish and manage shared khatmas',
   description = 'Guests can draft locally. Organizers sign in only when they are ready to share or manage their community khatmas.',
   redirectPath = '/dashboard',
 }: AuthCardProps) {
